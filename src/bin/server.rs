@@ -35,9 +35,10 @@ async fn handler(socket : tokio::net::TcpStream, user_list : Arc<DashMap<u16,Mut
     }
 }
 
-async fn send_to_user(user_list : Arc<DashMap<u16,Mutex<tokio::io::WriteHalf<TcpStream>>>>,user_id : u16, msg : Vec<u8>){
+async fn send_to_user(user_list : Arc<DashMap<u16,Mutex<tokio::io::WriteHalf<TcpStream>>>>, user_id : u16, msg : Vec<u8>){
     let guard = &*user_list.get(&user_id).unwrap();
     let mut w = guard.lock().await;
+    w.write_all(&(msg.len() as u16).to_be_bytes()).await.unwrap();
     w.write_all(&msg).await.unwrap();
 }
 
