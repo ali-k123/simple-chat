@@ -7,10 +7,12 @@ use std::sync::Arc;
 const IP : &str = "127.0.0.1";
 const PORT : &str = "8888";
 
+type UserList = Arc<DashMap<u16,Mutex<tokio::io::WriteHalf<TcpStream>>>>;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(format!("{}:{}",IP,PORT)).await?;
-    let user_list : Arc<DashMap<u16,Mutex<tokio::io::WriteHalf<TcpStream>>>> = Arc::new(DashMap::new());
+    let user_list : UserList = Arc::new(DashMap::new());
     loop {
         let (socket,_)= listener.accept().await?;
         let  l =user_list.clone();
@@ -20,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-async fn handler(socket : tokio::net::TcpStream, user_list : Arc<DashMap<u16,Mutex<tokio::io::WriteHalf<TcpStream>>>>){
+async fn handler(socket : tokio::net::TcpStream, user_list : UserList){
     let (mut r, w) = tokio::io::split(socket);
     user_list.insert(1,Mutex::new(w));
     loop{
@@ -35,7 +37,7 @@ async fn handler(socket : tokio::net::TcpStream, user_list : Arc<DashMap<u16,Mut
     }
 }
 
-async fn send_to_user(user_list : Arc<DashMap<u16,Mutex<tokio::io::WriteHalf<TcpStream>>>>, user_id : u16, msg : Vec<u8>){
+async fn send_to_user(user_list : UserList, user_id : u16, msg : Vec<u8>){
     let guard = &*user_list.get(&user_id).unwrap();
     let mut w = guard.lock().await;
     w.write_all(&(msg.len() as u16).to_be_bytes()).await.unwrap();
